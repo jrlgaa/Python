@@ -39,8 +39,8 @@ input_rect_p1 = pygame.Rect(50, 550, 300, 70)
 input_rect_p2 = pygame.Rect(1040, 550, 300, 70)
 input_active_p1 = False
 input_active_p2 = False
-font = pygame.font.SysFont('Sans', 30)
-base_font = pygame.font.SysFont('Sans', 30)
+font = pygame.font.Font('Pixel Coleco.otf', 30)
+base_font = pygame.font.Font('Pixel Coleco.otf', 30)
 
 def receive_data():
     global active_string, life, life2
@@ -91,13 +91,18 @@ def update_words():
 def check_input():
     global input_text_p1, input_text_p2, active_string, life, life2, p1_fire, p2_fire
 
-    if input_text_p1 == active_string:
+    # Convert the active string and input texts to lowercase for case-insensitive comparison
+    active_string_lower = active_string.lower()
+    input_text_p1_lower = input_text_p1.lower()
+    input_text_p2_lower = input_text_p2.lower()
+
+    if input_text_p1_lower == active_string_lower:
         life2 -= 10  # Decrease player 2's life
         life2 = max(life2, 0)
         input_text_p1 = ""
         update_words()
         p1_fire = True  # Trigger player 1 firing animation
-    elif input_text_p2 == active_string:
+    elif input_text_p2_lower == active_string_lower:
         life -= 10  # Decrease player 1's life
         life = max(life, 0)
         input_text_p2 = ""
@@ -134,6 +139,7 @@ fps = 60
 
 # Load images
 Background = pygame.image.load('bg.png')
+textbox = pygame.image.load('Main_textbox.png')
 char1 = pygame.image.load('tank1.png')
 char2 = pygame.image.load('char2.png')
 p1text = pygame.image.load('textbox1.png')
@@ -150,17 +156,26 @@ def animate_firing(player):
         fire_size1 = pygame.transform.scale(p1Fire, (80, 80))
         screen.blit(fire_size1, (175, HEIGHT - 143))
         bullet1 = pygame.transform.scale(p1Shell, (80, 80))
-        screen.blit(bullet1, (650, HEIGHT -135))
-        pygame.draw.line(screen, 'grey', (220, HEIGHT -100),(680, HEIGHT - 100), 5)
+        for alpha in range(255, 0, -15):  # Fade out effect
+            bullet1.set_alpha(alpha)
+            screen.blit(bullet1, (650, HEIGHT -135))
+            pygame.draw.line(screen, 'grey', (220, HEIGHT -100),(680, HEIGHT - 100), 5)
+            pygame.display.flip()
+            pygame.time.delay(10)
+        bullet1.set_alpha(255)  # Reset alpha value
     elif player == 2:
         # Player 2 firing animation
         fire_size2 = pygame.transform.scale(p2Fire, (80, 80))
         screen.blit(fire_size2, (1135, HEIGHT - 143))
         bullet2 = pygame.transform.scale(p2Shell, (80, 80))
-        screen.blit(bullet2, (700, HEIGHT -135))
-        pygame.draw.line(screen, 'grey', (750, HEIGHT - 100), (1180, HEIGHT - 100), 5)
+        for alpha in range(255, 0, -15):  # Fade out effect
+            bullet2.set_alpha(alpha)
+            screen.blit(bullet2, (700, HEIGHT -135))
+            pygame.draw.line(screen, 'grey', (750, HEIGHT - 100), (1180, HEIGHT - 100), 5)
+            pygame.display.flip()
+            pygame.time.delay(10)
+        bullet2.set_alpha(255)  # Reset alpha value
     pygame.display.flip()
-    pygame.time.delay(10)  # Delay to show the animation
 
 def player_1():
     tsize1 = pygame.transform.scale(char1, (160, 100))
@@ -183,17 +198,18 @@ def Background_sky():
     screen.blit(size, (0, 0))
 
 def word_box(word, x, y, padding):
-    text_surface = font.render(word, True, 'black')
+    text_surface = font.render(word, True, 'grey')
     text_width, text_height = text_surface.get_size()
     box_width = text_width + 2 * padding
     box_height = text_height + 2 * padding
-    pygame.draw.rect(screen, 'Black', (x, y, box_width, box_height), 2)
+    bgsize = pygame.transform.scale(textbox, (box_width, box_height))
+    screen.blit(bgsize, (x, y))
+    """pygame.draw.rect(screen, 'Black', (x, y, box_width, box_height), 2)"""
     text_rect = text_surface.get_rect(center=(x + box_width // 2, y + box_height // 2))
-    screen.blit(text_surface, text_rect)
+    screen.blit(text_surface, text_rect,)
 
 def draw_screen():
-    pygame.draw.rect(screen, 'white', [0, 0, WIDTH, HEIGHT], 5)
-    pygame.draw.rect(screen, 'black', [0, 0, WIDTH, HEIGHT], 3)
+
     screen.blit(base_font.render(f'P1 Life: {life}', True, 'Black'), (50, 620))
     screen.blit(base_font.render(f'P2 Life: {life2}', True, 'Black'), (1145, 620))
 
@@ -244,12 +260,12 @@ while run:
     # Draw text input for player 1
     txt_surface_p1 = base_font.render(input_text_p1, True, 'black')
     screen.blit(txt_surface_p1, (input_rect_p1.x + 20, input_rect_p1.y + 13))
-    pygame.draw.rect(screen, 'black', input_rect_p1, 2)
+    #pygame.draw.rect(screen, 'black', input_rect_p1, 2)
 
     # Draw text input for player 2
     txt_surface_p2 = base_font.render(input_text_p2, True, 'black')
     screen.blit(txt_surface_p2, (input_rect_p2.x + 20, input_rect_p2.y + 13))
-    pygame.draw.rect(screen, 'black', input_rect_p2, 2)
+    #pygame.draw.rect(screen, 'black', input_rect_p2, 2)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
