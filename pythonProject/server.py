@@ -38,11 +38,6 @@ except Exception as e:
 clients = []
 
 # Game state
-game_state = {
-    'word': '',
-    'player1_life': 200,
-    'player2_life': 200
-}
 
 def broadcast_game_state():
 
