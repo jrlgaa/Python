@@ -144,8 +144,8 @@ sound_effect = pygame.mixer.Sound('Fire_sound.wav')
 
 # Game variables
 active_string = "Game Start"
-life = 200
-life2 = 200
+life = 10
+life2 = 10
 countdown_started = False
 change_interval = 4000  # Duration between word changes in milliseconds
 
@@ -484,6 +484,8 @@ thread.start()
 # Display countdown before starting the game
 countdown()
 
+
+
 p1_fire = False
 p2_fire = False
 
@@ -491,11 +493,71 @@ explosions = pygame.sprite.Group()
 fire = pygame.sprite.Group()
 fire2 = pygame.sprite.Group()
 
+
 run = True
+
+def display_winner(winner):
+    screen.fill((0, 0, 0))  # Black background
+
+    # Draw winning message
+    win_text = font.render(f"{winner} Wins!", True, 'White')
+    win_rect = win_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 100))
+    screen.blit(win_text, win_rect)
+
+    # Draw play again button
+    play_again_text = font.render("Play Again", True, 'White')
+    play_again_rect = play_again_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+    pygame.draw.rect(screen, 'Grey', play_again_rect.inflate(20, 10))  # Button background
+    screen.blit(play_again_text, play_again_rect)
+
+    # Draw exit button
+    exit_text = font.render("Exit", True, 'White')
+    exit_rect = exit_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150))
+    pygame.draw.rect(screen, 'Grey', exit_rect.inflate(20, 10))  # Button background
+    screen.blit(exit_text, exit_rect)
+
+    pygame.display.flip()
+
+    return play_again_rect, exit_rect
+
+def check_winner():
+    global life, life2, run
+    if life == 0:
+        return "Player 2"
+    elif life2 == 0:
+        return "Player 1"
+    return None
+
 while run:
     timer.tick(fps)
     # Update background
     background_sprite.update()
+
+    winner = check_winner()
+    if winner:
+        play_again_rect, exit_rect = display_winner(winner)
+
+        # Wait for the player's decision (play again or exit)
+        waiting_for_input = True
+        while waiting_for_input:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
+                    waiting_for_input = False
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if play_again_rect.collidepoint(event.pos):
+                        # Reset game state to play again
+                        life = 10
+                        life2 = 10
+                        active_string = random.choice(words_list)
+                        p1_fire = False
+                        p2_fire = False
+                        waiting_for_input = False
+
+                    elif exit_rect.collidepoint(event.pos):
+                        run = False
+                        waiting_for_input = False
 
     # Clear the screen
     screen.fill((0, 0, 0))  # Optional: fill with black before drawing
