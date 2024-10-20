@@ -13,7 +13,9 @@ def get_local_ip():
         s.close()
     except Exception as e:
         print(f"Error determining local IP address: {e}")
-        local_ip = '192.168.1.19'  # Fallback to localhost
+        local_ip = socket.gethostbyname(socket.gethostname())
+        if local_ip.startswith("127."):
+            local_ip = '192.168.89.0'  # Fallback to localhost
     return local_ip
 
 # Define the server details
