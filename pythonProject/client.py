@@ -241,7 +241,153 @@ HEIGHT = 800
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption('Wordsprint Showdown!')
 timer = pygame.time.Clock()
-fps = 30
+fps = 60
+
+# Main menu
+opponents = ["Player 1", "Player 2"]
+
+# Menu function to display the Play button
+def draw_menu():
+    screen.fill((0, 0, 0))  # Black background
+
+    # Draw title
+    title_text = font.render("WordSprint Showdown", True, 'White')
+    title_rect = title_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 100))
+    screen.blit(title_text, title_rect)
+
+    # Draw play button
+    play_button_text = font.render("Play", True, 'White')
+    play_button_rect = play_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
+    pygame.draw.rect(screen, 'Grey', play_button_rect.inflate(20, 10))  # Button background
+    screen.blit(play_button_text, play_button_rect)
+
+    pygame.display.flip()
+    return play_button_rect
+
+def main_menu():
+    menu_active = True
+    while menu_active:
+        play_button_rect = draw_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if play_button_rect.collidepoint(event.pos):
+                    menu_active = False  # Exit the menu loop and go to lobby
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:  # Start game if ENTER is pressed
+                    menu_active = False
+
+        timer.tick(fps)
+
+# Lobby function to display available opponents
+def draw_lobby():
+    screen.fill((0, 0, 0))  # Black background
+
+    # Draw title
+    title_text = font.render("Choose Side", True, 'White')
+    title_rect = title_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 200))
+    screen.blit(title_text, title_rect)
+
+    # Draw opponent buttons
+    button_rects = []
+    for idx, opponent in enumerate(opponents):
+        opponent_text = font.render(opponent, True, 'White')
+        opponent_rect = opponent_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 100 + (idx * 80)))
+        pygame.draw.rect(screen, 'Grey', opponent_rect.inflate(20, 10))  # Button background
+        screen.blit(opponent_text, opponent_rect)
+        button_rects.append(opponent_rect)
+
+    pygame.display.flip()
+    return button_rects
+
+# Lobby function with server interaction for player choice
+def lobby():
+    global selected_opponent
+    lobby_active = True
+    selected_opponent = None
+
+    while lobby_active:
+        button_rects = draw_lobby()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                for idx, rect in enumerate(button_rects):
+                    if rect.collidepoint(event.pos):
+                        selected_opponent = opponents[idx]
+                        print(f"Opponent selected: {selected_opponent}")
+
+                        # Send the player choice to the server
+                        try:
+                            data = {'player': selected_opponent}
+                            client.send(pickle.dumps(data))
+                        except Exception as e:
+                            print(f"Error sending player choice: {e}")
+                            pygame.quit()
+                            exit()
+
+                        lobby_active = False  # Exit the lobby loop after selection
+                        break
+
+        timer.tick(fps)
+
+# Function to wait for the other player's choice
+def wait_for_opponent():
+    global selected_opponent
+    waiting = True
+    while waiting:
+        try:
+            data = client.recv(4096)
+            if data:
+                response = pickle.loads(data)
+                if response['status'] == 'both_selected':
+                    print("Both players have selected their sides. Starting the game...")
+                    waiting = False  # Exit the waiting loop and start the game
+                else:
+                    print("Waiting for the other player to select...")
+        except Exception as e:
+            print(f"Error while waiting for opponent: {e}")
+            pygame.quit()
+            exit()
+
+# Main game loop after lobby
+def game_loop():
+    countdown()  # Start countdown
+
+    # Main game logic goes here
+    run = True
+    while run:
+        timer.tick(fps)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+
+        # Game drawing and updates go here
+        # Example:
+        draw_screen()
+
+        pygame.display.flip()
+
+    pygame.quit()
+
+# Call the main_menu function before the game starts
+main_menu()
+
+# After main menu, show the lobby
+lobby()
+
+# Wait for the opponent to choose
+wait_for_opponent()
+
+# Start the game after both players have selected their sides
+game_loop()
 
 # Load images
 Background = pygame.image.load('bg.png')
@@ -340,7 +486,6 @@ def word_box(word, x, y, padding):
     box_height = text_height + 2 * padding
     bgsize = pygame.transform.scale(textbox, (box_width, box_height))
     screen.blit(bgsize, (x, y))
-    """pygame.draw.rect(screen, 'Black', (x, y, box_width, box_height), 2)"""
     text_rect = text_surface.get_rect(center=(x + box_width // 2, y + box_height // 2))
     screen.blit(text_surface, text_rect,)
 
