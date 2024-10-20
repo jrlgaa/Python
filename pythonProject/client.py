@@ -6,8 +6,23 @@ import random
 import time
 from pygame.sprite import Group
 
-# Define the server details
-SERVER_IP = '192.168.1.19'
+def get_local_ip():
+    try:
+        # Connect to an external server to find out the local IP address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))  # Connect to Google's DNS server to determine local IP
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception as e:
+        print(f"Error determining local IP address: {e}")
+        # Fallback to local IP from hostname
+        local_ip = socket.gethostbyname(socket.gethostname())
+        if local_ip.startswith("127."):
+            local_ip = "192.168.1.19"  # Last fallback
+    return local_ip
+
+# Get local IP dynamically
+SERVER_IP = get_local_ip()
 PORT = 5555
 ADDR = (SERVER_IP, PORT)
 
@@ -306,13 +321,10 @@ def draw_lobby():
 
 # Lobby function with server interaction for player choice
 def lobby():
-    global selected_opponent
+    global input_active_p1, input_active_p2  # Add these to modify input states
     lobby_active = True
-    selected_opponent = None
-
     while lobby_active:
         button_rects = draw_lobby()
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -324,58 +336,19 @@ def lobby():
                         selected_opponent = opponents[idx]
                         print(f"Opponent selected: {selected_opponent}")
 
-                        # Send the player choice to the server
-                        try:
-                            data = {'player': selected_opponent}
-                            client.send(pickle.dumps(data))
-                        except Exception as e:
-                            print(f"Error sending player choice: {e}")
-                            pygame.quit()
-                            exit()
+                        # Automatically set the input state based on the selected player
+                        if selected_opponent == "Player 1":
+                            input_active_p1 = True
+                            input_active_p2 = False
+                        elif selected_opponent == "Player 2":
+                            input_active_p1 = False
+                            input_active_p2 = True
 
-                        lobby_active = False  # Exit the lobby loop after selection
+                        lobby_active = False  # Exit the lobby loop and start the game
                         break
 
         timer.tick(fps)
 
-# Function to wait for the other player's choice
-def wait_for_opponent():
-    global selected_opponent
-    waiting = True
-    while waiting:
-        try:
-            data = client.recv(4096)
-            if data:
-                response = pickle.loads(data)
-                if response['status'] == 'both_selected':
-                    print("Both players have selected their sides. Starting the game...")
-                    waiting = False  # Exit the waiting loop and start the game
-                else:
-                    print("Waiting for the other player to select...")
-        except Exception as e:
-            print(f"Error while waiting for opponent: {e}")
-            pygame.quit()
-            exit()
-
-# Main game loop after lobby
-def game_loop():
-    countdown()  # Start countdown
-
-    # Main game logic goes here
-    run = True
-    while run:
-        timer.tick(fps)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                run = False
-
-        # Game drawing and updates go here
-        # Example:
-        draw_screen()
-
-        pygame.display.flip()
-
-    pygame.quit()
 
 # Call the main_menu function before the game starts
 main_menu()
@@ -383,11 +356,6 @@ main_menu()
 # After main menu, show the lobby
 lobby()
 
-# Wait for the opponent to choose
-wait_for_opponent()
-
-# Start the game after both players have selected their sides
-game_loop()
 
 # Load images
 Background = pygame.image.load('bg.png')
@@ -526,7 +494,6 @@ fire2 = pygame.sprite.Group()
 run = True
 while run:
     timer.tick(fps)
-
     # Update background
     background_sprite.update()
 
