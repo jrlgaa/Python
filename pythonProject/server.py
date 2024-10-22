@@ -2,24 +2,8 @@ import socket
 import threading
 import pickle
 
-
-def get_local_ip():
-    try:
-        # Connect to an external server to find out the local IP address
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.settimeout(0)
-        s.connect(('8.8.8.8', 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception as e:
-        print(f"Error determining local IP address: {e}")
-        local_ip = socket.gethostbyname(socket.gethostname())
-        if local_ip.startswith("127."):
-            local_ip = '192.168.89.0'  # Fallback to localhost
-    return local_ip
-
 # Define the server details
-SERVER_IP = get_local_ip()  # Use dynamically obtained IP address
+SERVER_IP = '192.168.1.12'
 PORT = 5555
 ADDR = (SERVER_IP, PORT)
 
