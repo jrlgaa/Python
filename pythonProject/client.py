@@ -6,23 +6,7 @@ import random
 import time
 from pygame.sprite import Group
 
-def get_local_ip():
-    try:
-        # Connect to an external server to find out the local IP address
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))  # Connect to Google's DNS server to determine local IP
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception as e:
-        print(f"Error determining local IP address: {e}")
-        # Fallback to local IP from hostname
-        local_ip = socket.gethostbyname(socket.gethostname())
-        if local_ip.startswith("127."):
-            local_ip = "192.168.1.19"  # Last fallback
-    return local_ip
-
-# Get local IP dynamically
-SERVER_IP = get_local_ip()
+SERVER_IP = '192.168.1.12'
 PORT = 5555
 ADDR = (SERVER_IP, PORT)
 
@@ -147,8 +131,11 @@ active_string = "Game Start"
 life = 10
 life2 = 10
 countdown_started = False
-change_interval = 4000  # Duration between word changes in milliseconds
-
+change_interval = 4000
+player_status = {
+    "Player 1": "waiting",
+    "Player 2": "waiting"
+}
 # Text input variables
 input_text_p1 = ""
 input_text_p2 = ""
@@ -160,7 +147,7 @@ font = pygame.font.Font('Pixel Coleco.otf', 30)
 base_font = pygame.font.Font('Pixel Coleco.otf', 30)
 
 def receive_data():
-    global active_string, life, life2
+    global active_string, life, life2, player_status
     while True:
         try:
             data = client.recv(4096)
@@ -175,6 +162,7 @@ def receive_data():
                         active_string = game_state['word']
                         life = game_state['player1_life']
                         life2 = game_state['player2_life']
+                        player_status = game_state.get('player_status', player_status)
                     else:
                         print("Received dictionary does not contain expected keys")
                 else:
@@ -188,17 +176,70 @@ def receive_data():
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             break
-
 def send_data():
     game_state = {
         'word': active_string,
         'player1_life': life,
-        'player2_life': life2
+        'player2_life': life2,
+        'player_status': player_status
     }
     try:
         client.send(pickle.dumps(game_state))
     except Exception as e:
         print(f"Error sending data: {e}")
+
+
+def waiting_lobby():
+    global player_status
+
+    # Update player status based on selection
+    if input_active_p1:
+        player_status["Player 1"] = "ready"
+    elif input_active_p2:
+        player_status["Player 2"] = "ready"
+    send_data()
+    waiting = True
+    while waiting:
+        screen.fill('BLACK')
+        # Display waiting message
+        waiting_text = font.render("Waiting for other player...", True, 'WHITE')
+        waiting_rect = waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(waiting_text, waiting_rect)
+
+        # Display player statuses
+        p1_status_text = font.render(f"Player 1: {player_status['Player 1']}", True, 'WHITE')
+        p1_status_rect = p1_status_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+        screen.blit(p1_status_text, p1_status_rect)
+
+        p2_status_text = font.render(f"Player 2: {player_status['Player 2']}", True, 'WHITE')
+        p2_status_rect = p2_status_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
+        screen.blit(p2_status_text, p2_status_rect)
+
+        pygame.display.flip()
+
+        # Check if both players are ready
+        if player_status["Player 1"] == "ready" and player_status["Player 2"] == "ready":
+            waiting = False
+            countdown()  # Start countdown to the game
+
+        # Allow pygame events for quitting, etc.
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+def countdown():
+    countdown_font = pygame.font.Font(None, 100)
+    countdown_start_time = time.time()
+    countdown_duration = 3
+    while time.time() - countdown_start_time < countdown_duration:
+        screen.fill('BLACK')
+        remaining_time = countdown_duration - int(time.time() - countdown_start_time)
+        countdown_surface = countdown_font.render(f'Game Start in {remaining_time}', True, 'WHITE')
+        countdown_rect = countdown_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(countdown_surface, countdown_rect)
+        pygame.display.flip()
+        timer.tick(1)
+    update_words()  # Start the game words
 
 def update_words():
     global active_string
@@ -260,7 +301,6 @@ fps = 60
 
 # Main menu
 opponents = ["Player 1", "Player 2"]
-
 # Menu function to display the Play button
 def draw_menu():
     screen.fill((0, 0, 0))  # Black background
@@ -333,7 +373,7 @@ def lobby():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 for idx, rect in enumerate(button_rects):
                     if rect.collidepoint(event.pos):
-                        selected_opponent = opponents[idx]
+                        selected_opponent = f"Player {idx + 1}"
                         print(f"Opponent selected: {selected_opponent}")
 
                         # Automatically set the input state based on the selected player
@@ -345,8 +385,8 @@ def lobby():
                             input_active_p2 = True
 
                         lobby_active = False  # Exit the lobby loop and start the game
+                        waiting_lobby()
                         break
-
         timer.tick(fps)
 
 
@@ -531,6 +571,9 @@ def check_winner():
 while run:
     timer.tick(fps)
     # Update background
+    lobby()  # Start with lobby
+    receive_data()  # Start receiving data
+
     background_sprite.update()
 
     winner = check_winner()
