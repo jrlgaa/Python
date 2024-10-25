@@ -9,18 +9,17 @@ from pygame.sprite import Group
 SERVER_IP = '192.168.1.17'
 PORT = 5555
 ADDR = (SERVER_IP, PORT)
-
-# Create a socket object
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect(ADDR)
 
-try:
-    client.connect(ADDR)
+"""try:
+    
 except ConnectionRefusedError:
     print(f"Failed to connect to {SERVER_IP}:{PORT}. Is the server running?")
     exit(1)
 except Exception as e:
     print(f"Error connecting to server: {e}")
-    exit(1)
+    exit(1)"""
 
 #lobby
 class Lobby(pygame.sprite.Sprite):
@@ -160,10 +159,7 @@ life = 10
 life2 = 10
 countdown_started = False
 change_interval = 4000
-player_status = {
-    "Player 1": "Waiting for other player...",
-    "Player 2": "Waiting for other player..."
-}
+player_status = {"Player 1": "not ready", "Player 2": "not ready"}
 # Text input variables
 input_text_p1 = ""
 input_text_p2 = ""
@@ -183,26 +179,18 @@ def receive_data():
                 print("No data received or connection closed")
                 break
 
-            try:
-                game_state = pickle.loads(data)
-                if isinstance(game_state, dict):
-                    if 'word' in game_state and 'player1_life' in game_state and 'player2_life' in game_state:
-                        active_string = game_state['word']
-                        life = game_state['player1_life']
-                        life2 = game_state['player2_life']
-                        player_status = game_state.get('player_status', player_status)
-                    else:
-                        print("Received dictionary does not contain expected keys")
-                else:
-                    print("Received data is not a dictionary")
-            except pickle.UnpicklingError as e:
-                print(f"Error unpickling data: {e}")
+            game_state = pickle.loads(data)
+            if isinstance(game_state, dict):
+                active_string = game_state.get('word', active_string)
+                life = game_state.get('player1_life', life)
+                life2 = game_state.get('player2_life', life2)
+                player_status = game_state.get('player_status', player_status)
 
-        except ConnectionResetError as e:
-            print(f"Connection was reset by the server: {e}")
-            break
+                if game_state.get("game_started"):
+                    print("Both players are ready. Game is starting!")
+                    return  # Exit waiting lobby and start the game
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            print(f"Error receiving data: {e}")
             break
 def send_data():
     game_state = {
@@ -219,13 +207,16 @@ def send_data():
 def waiting_lobby():
     global player_status
     lobby_instance = Lobby()  # Instantiate the lobby
+    player_status["Player 1"] = "ready" if input_active_p1 else player_status["Player 1"]
+    player_status["Player 2"] = "ready" if input_active_p2 else player_status["Player 2"]
+    send_data()
 
     # Update player status based on selection
-    if input_active_p1:
+    """if input_active_p1:
         player_status["Player 1"] = "ready"
     elif input_active_p2:
         player_status["Player 2"] = "ready"
-    send_data()
+    send_data()"""
     waiting = True
     while waiting:
         screen.fill('BLACK')
